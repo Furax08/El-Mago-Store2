@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧙‍♂️ El Mago Stores - Panel Maestro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 10px; font-size: 14px; }
+        .card { background: #1e1e1e; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        input { padding: 8px; margin: 5px 0; border-radius: 5px; border: 1px solid #333; width: 100%; box-sizing: border-box; background: #2a2a2a; color: white; }
+        button { padding: 4px 8px; margin: 2px; border-radius: 4px; border: none; cursor: pointer; font-size: 11px; font-weight: bold; }
+        
+        .btn-add { background: #00e676; color: #000; }
+        .btn-other { background: #9c27b0; color: white; }
+        .btn-fb { background: #1877f2; color: white; }
+        .btn-ig { background: #e1306c; color: white; }
+        .btn-factura { background: #ffeb3b; color: #000; }
+        .btn-edit { background: #2196f3; color: white; }
+        .btn-del { background: #ff5252; color: white; }
+        .nav-btn { background: #444; color: white; margin: 2px; }
+
+        .logo-container { text-align: center; margin-bottom: 10px; }
+        .logo-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #00e676; cursor: pointer; }
+        .producto-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding: 6px 0; }
+        .actions { display: flex; gap: 3px; }
+        h3 { margin: 5px 0; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="logo-container">
+            <img id="logoImg" src="https://via.placeholder.com/150" class="logo-preview" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="cargarLogo(event)">
+            <h3>El Mago Stores</h3>
+        </div>
+        <input type="number" id="tasa" placeholder="Tasa (Bs.)" oninput="guardarYActualizar()">
+        <input type="text" id="busqueda" placeholder="🔍 Buscar..." oninput="renderizar()">
+        <div id="navRapida"></div>
+        <button onclick="editarFirma()" style="background:#607d8b; width: 100%; margin-top:5px;">✏️ Editar Firma</button>
+    </div>
+
+    <div class="card">
+        <input type="text" id="nuevoJuego" placeholder="Nuevo juego...">
+        <button class="btn-add" onclick="agregarJuego()" style="width: 100%;">+ Agregar Juego</button>
+    </div>
+
+    <div id="contenedorJuegos"></div>
+
+    <script>
+        let datos = JSON.parse(localStorage.getItem('magoStore')) || [];
+        let tasa = parseFloat(localStorage.getItem('tasaMago')) || 0;
+        let firma = localStorage.getItem('firmaMago') || "_🧙‍♂️EL Mago Store - Servicio de compra - Juegos🛒🛍️_";
+        let logoGuardado = localStorage.getItem('logoMago');
+
+        if(logoGuardado) document.getElementById('logoImg').src = logoGuardado;
+        document.getElementById('tasa').value = tasa;
+
+        function cargarLogo(event) {
+            let reader = new FileReader();
+            reader.onload = function(){
+                let dataURL = reader.result;
+                document.getElementById('logoImg').src = dataURL;
+                localStorage.setItem('logoMago', dataURL);
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        function guardarYActualizar() {
+            tasa = parseFloat(document.getElementById('tasa').value) || 0;
+            localStorage.setItem('tasaMago', tasa);
+            renderizar();
+        }
+
+        function editarFirma() {
+            let nuevaFirma = prompt("Cambiar firma:", firma);
+            if(nuevaFirma) { firma = nuevaFirma; localStorage.setItem('firmaMago', firma); }
+        }
+
+        function generarFactura(jIdx, pIdx) {
+            let j = datos[jIdx];
+            let p = j.productos[pIdx];
+            let logoSrc = document.getElementById('logoImg').src;
+            let codigo = Math.random().toString(36).substring(2, 10).toUpperCase();
+            
+            let modal = document.createElement('div');
+            modal.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999;";
+            modal.innerHTML = `
+                <div id="captureArea" style="background:#1e1e1e; color:white; padding:20px; border-radius:15px; border:2px solid #ffeb3b; width:280px; font-family:monospace; text-align:center;">
+                    <img src="${logoSrc}" style="width:50px; height:50px; border-radius:50%; margin-bottom:10px;">
+                    <div style="font-size:12px;"><b>✅ ORDEN #${codigo}</b></div>
+                    <div style="text-align:left; font-size:13px; margin-top:10px;">
+                        <b>🛍️ PRODUCTO:</b> ${p.prod.toUpperCase()}<br>
+                        <b>📊 DETALLES:</b><br>
+                        • Valor: ${(p.precio*0.85).toFixed(2)}$ USDT<br>
+                        • Comis: ${(p.precio*0.06).toFixed(2)}$ USDT<br>
+                        • Serv: ${(p.precio*0.09).toFixed(2)}$ USDT<br>
+                        <hr style="border-top:1px dashed #555;">
+                        <b>💰 TOTAL PAGADO:</b> ${(p.precio * tasa).toLocaleString('es-VE', {minimumFractionDigits: 2})} Bs. 🇻🇪✔️
+                    </div>
+                </div>
+                <div style="margin-top:15px;">
+                    <button onclick="descargar()" style="background:#00e676; padding:10px; border-radius:5px;">📥 DESCARGAR</button>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:#ff5252; padding:10px; border-radius:5px; color:white;">CERRAR</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function descargar() {
+            html2canvas(document.querySelector("#captureArea"), {backgroundColor: "#1e1e1e"}).then(canvas => {
+                let link = document.createElement('a');
+                link.download = 'factura.png';
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
+        }
+
+        function renderizar() {
+            let filtro = document.getElementById('busqueda').value.toLowerCase();
+            let container = document.getElementById('contenedorJuegos');
+            let nav = document.getElementById('navRapida');
+            container.innerHTML = ''; nav.innerHTML = '';
+            
+            datos.forEach((juego, i) => {
+                nav.innerHTML += `<button class="nav-btn" onclick="document.getElementById('juego_${i}').scrollIntoView()">${juego.nombre}</button>`;
+                if(!juego.nombre.toLowerCase().includes(filtro)) return;
+
+                let html = `<div class="card" id="juego_${i}">
+                    <h3>${juego.nombre} <button class="btn-edit" onclick="editarNombreJuego(${i})">✏️</button> <button class="btn-del" onclick="datos.splice(${i},1); actualizarStorage(); renderizar()">X</button></h3>
+                    <div class="actions" style="margin-bottom:8px;">
+                        <button class="btn-add" onclick="agregarProducto(${i})">+ Prod</button>
+                        <button class="btn-other" onclick="agregarProducto(${i}, true)">+ Otro</button>
+                        <button class="btn-fb" onclick="alert('Funcionalidad mantenida')">FB</button>
+                        <button class="btn-ig" onclick="alert('Funcionalidad mantenida')">IG</button>
+                    </div>`;
+                
+                juego.productos.forEach((p, pIdx) => {
+                    let bs = (parseFloat(p.precio) * tasa).toLocaleString('es-VE', {minimumFractionDigits: 2});
+                    html += `<div class="producto-row"><span><b>${p.prod}</b> (${bs} Bs.)</span>
+                        <div class="actions"><button class="btn-factura" onclick="generarFactura(${i}, ${pIdx})">🧾</button><button class="btn-edit" onclick="editarProducto(${i}, ${pIdx})">✏️</button><button class="btn-del" onclick="datos[${i}].productos.splice(${pIdx},1); actualizarStorage(); renderizar()">🗑️</button></div>
+                    </div>`;
+                });
+                container.innerHTML += html + `</div>`;
+            });
+        }
+
+        function agregarProducto(jIdx, esOtro=false) { let p = prompt("Nombre:"); let pr = prompt("Precio USD:"); if(p && pr) { datos[jIdx].productos.push({prod: p, precio: pr, esOtro}); actualizarStorage(); renderizar(); } }
+        function editarProducto(jIdx, pIdx) { let p = datos[jIdx].productos[pIdx]; let nP = prompt("Nombre:", p.prod); let nPr = prompt("Precio:", p.precio); if(nP && nPr) { datos[jIdx].productos[pIdx] = {prod: nP, precio: nPr, esOtro: p.esOtro}; actualizarStorage(); renderizar(); } }
+        function editarNombreJuego(i) { let n = prompt("Nuevo nombre:", datos[i].nombre); if(n) { datos[i].nombre = n; actualizarStorage(); renderizar(); } }
+        function agregarJuego() { let n = document.getElementById('nuevoJuego').value; if(n) { datos.push({nombre: n, productos: []}); actualizarStorage(); renderizar(); } }
+        function actualizarStorage() { localStorage.setItem('magoStore', JSON.stringify(datos)); }
+        renderizar();
+    </script>
+</body>
+</html>
+
